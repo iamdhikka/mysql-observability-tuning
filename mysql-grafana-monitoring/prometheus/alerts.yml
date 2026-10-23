@@ -1,0 +1,58 @@
+groups:
+  - name: mysql
+    rules:
+      - alert: MySQLDown
+        expr: mysql_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "MySQL {{ $labels.instance }} mati"
+          description: "Exporter tidak bisa terhubung ke MySQL selama lebih dari 1 menit."
+
+      - alert: MySQLTooManyConnections
+        expr: max_over_time(mysql_global_status_threads_connected[1m]) / mysql_global_variables_max_connections * 100 > 80
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Koneksi MySQL {{ $labels.instance }} di atas 80%"
+          description: "Pemakaian koneksi saat ini {{ $value | printf \"%.0f\" }}% dari max_connections."
+
+      - alert: MySQLHighThreadsRunning
+        expr: max_over_time(mysql_global_status_threads_running[1m]) > 30
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Threads running tinggi di {{ $labels.instance }}"
+          description: "Ada {{ $value }} thread aktif; kemungkinan ada query berat atau lock."
+
+      - alert: MySQLSlowQueries
+        expr: increase(mysql_global_status_slow_queries[5m]) > 10
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Banyak slow query di {{ $labels.instance }}"
+          description: "{{ $value | printf \"%.0f\" }} slow query dalam 5 menit terakhir."
+
+      - alert: MySQLRestarted
+        expr: mysql_global_status_uptime < 300
+        for: 0m
+        labels:
+          severity: info
+        annotations:
+          summary: "MySQL {{ $labels.instance }} baru saja restart"
+          description: "Uptime kurang dari 5 menit."
+
+      - alert: MySQLLowBufferPoolHitRatio
+        expr: |
+          (1 - rate(mysql_global_status_innodb_buffer_pool_reads[5m])
+               / rate(mysql_global_status_innodb_buffer_pool_read_requests[5m])) * 100 < 95
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "InnoDB buffer pool hit ratio rendah di {{ $labels.instance }}"
+          description: "Hit ratio {{ $value | printf \"%.1f\" }}%; pertimbangkan menaikkan innodb_buffer_pool_size."
